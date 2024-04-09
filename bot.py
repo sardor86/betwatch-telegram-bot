@@ -2,11 +2,9 @@ import asyncio
 import logging
 
 from aiogram import Bot, Dispatcher
-from aiogram.contrib.fsm_storage.memory import MemoryStorage
-from aiogram.contrib.fsm_storage.redis import RedisStorage2
+from aiogram.fsm.storage.redis import RedisStorage, Redis
 
 from tgbot.config import load_config
-from tgbot.filters import register_all_filters
 from tgbot.handlers import register_all_handlers
 
 logger = logging.getLogger(__name__)
@@ -19,21 +17,21 @@ async def main():
     )
     logger.info("Starting bot")
     config = load_config(".env")
+    redis = Redis(host=config.redis.host, port=config.redis.port)
 
-    storage = RedisStorage2() if config.tg_bot.use_redis else MemoryStorage()
+    storage = RedisStorage(redis)
     bot = Bot(token=config.tg_bot.token, parse_mode='HTML')
-    dp = Dispatcher(bot, storage=storage)
+    bot.config = config
+    bot.redis = redis
 
-    bot['config'] = config
-    register_all_filters(dp)
+    dp = Dispatcher(storage=storage)
     register_all_handlers(dp)
 
     # start
     try:
-        await dp.start_polling()
+        await dp.start_polling(bot, allowed_updates=dp.resolve_used_update_types())
     finally:
         await dp.storage.close()
-        await dp.storage.wait_closed()
         await bot.session.close()
 
 
