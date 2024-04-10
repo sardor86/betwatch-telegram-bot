@@ -1,8 +1,12 @@
-FROM python:3.9-buster
-ENV BOT_NAME=$BOT_NAME
+FROM ubuntu
+WORKDIR /tg_bot
 
-WORKDIR /usr/src/app/"${BOT_NAME:-tg_bot}"
+RUN apt update
+RUN apt upgrade -y
+RUN apt install python3 python3-pip -y
+RUN pip3 install --upgrade pip
 
-COPY requirements.txt /usr/src/app/"${BOT_NAME:-tg_bot}"
-RUN pip install -r /usr/src/app/"${BOT_NAME:-tg_bot}"/requirements.txt
-COPY . /usr/src/app/"${BOT_NAME:-tg_bot}"
+COPY requirements.txt requirements.txt
+RUN pip3 install -r requirements.txt
+COPY . .
+CMD ["python3", "bot.py"]
