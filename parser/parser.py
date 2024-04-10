@@ -1,6 +1,7 @@
 import json
 from datetime import datetime
 
+import pytz
 import requests
 from bs4 import BeautifulSoup
 
@@ -73,7 +74,7 @@ class BetWatchParser:
                                 'country=&'
                                 'league=&'
                                 'utc=5&'
-                                'step=10')
+                                'step=1')
         data = json.loads(html.text)
         for match in data['data']:
             self.matches[match['m']] = match['e']
@@ -101,17 +102,32 @@ class BetWatchParser:
         soup = BeautifulSoup(html.text, 'html.parser')
 
         if len(soup.find_all('button', class_='header-button')) == 2:
-            result['type'] = 'live'
-            match_time = json.loads(self.session.get(f'{BASE_URL}/live?'
-                                                     f'live={self.matches[match]}').text)[str(self.matches[match])][0]
-            if match_time == 'HT':
-                result['time'] = 45
-            else:
-                result['time'] = int(match_time)
-            if not (self.from_time <= result['time'] <= self.up_time):
-                return
+            try:
+                match_data = json.loads(self.session.get(f'{BASE_URL}/live?'
+                                                         f'live={self.matches[match]}').text)[str(self.matches[match])]
+                result['type'] = 'live'
+                result['score'] = match_data[1]
+                if match_data[0] == 'HT':
+                    result['time'] = 45
+                else:
+                    if '+' in match_data[0]:
+                        result['time'] = sum([int(i) for i in match_data[0].split('+')])
+                    else:
+                        result['time'] = int(match_data[0])
+                if not (self.from_time <= result['time'] <= self.up_time):
+                    return
+            except KeyError:
+                pass
         else:
             result['type'] = 'pre-match'
+            match_time = json.loads(self.session.get(f'{BASE_URL}/football/{self.matches[match]}',
+                                                     headers={'X-Requested-With': 'XMLHttpRequest'}).text)['ce']
+
+            date_utc = datetime.strptime(match_time, "%Y-%m-%dT%H:%M:%SZ")
+            your_timezone = pytz.timezone('Europe/Moscow')
+
+            match_time_local = date_utc.replace(tzinfo=pytz.utc).astimezone(your_timezone)
+            result['time'] = match_time_local.strftime('%Y-%m-%d %H:%M:%S %Z%z')
 
         for info in soup.find_all('div', class_='match-issues'):
             for runner in info.find_all('div', class_='match-runner'):

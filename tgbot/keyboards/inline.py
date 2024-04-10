@@ -16,7 +16,7 @@ async def get_filters_keyboard(filters):
             InlineKeyboardButton(text=f"До {filters['to_coefficient']} кф", callback_data="filter_to_coefficient")
         ],
         [
-            InlineKeyboardButton(text="Block List", callback_data="block_list"),
+            InlineKeyboardButton(text=f"Block List: {filters['block_list']}", callback_data="block_list"),
         ],
         [
             InlineKeyboardButton(text="Сохранить", callback_data="save_filters"),
