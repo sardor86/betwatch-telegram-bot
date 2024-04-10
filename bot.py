@@ -6,6 +6,7 @@ from aiogram.fsm.storage.redis import RedisStorage, Redis
 
 from tgbot.config import load_config
 from tgbot.handlers import register_all_handlers
+from parser import BetWatchParser
 
 logger = logging.getLogger(__name__)
 
@@ -23,6 +24,7 @@ async def main():
     bot = Bot(token=config.tg_bot.token, parse_mode='HTML')
     bot.config = config
     bot.redis = redis
+    bot.parser = BetWatchParser()
 
     dp = Dispatcher(storage=storage)
     register_all_handlers(dp)

@@ -2,6 +2,8 @@ from dataclasses import dataclass
 
 from environs import Env
 
+BASE_URL = 'https://betwatch.fr'
+
 
 @dataclass
 class RedisConfig:
