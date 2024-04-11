@@ -1,3 +1,4 @@
+
 import json
 import asyncio
 
@@ -16,10 +17,13 @@ async def check_matches(old_matches_list: list, new_matches_list: list) -> dict 
     }
 
     for new_match in new_matches_list:
-        if new_match['name'] in [old_match['name'] for old_match in old_matches_list]:
-            result['old_matches'].append(new_match)
+        try:
+            if new_match['name'] in [old_match['name'] for old_match in old_matches_list]:
+                result['old_matches'].append(new_match)
+                continue
+            result['new_matches'].append(new_match)
+        except TypeError:
             continue
-        result['new_matches'].append(new_match)
 
     return result
 
@@ -57,7 +61,7 @@ async def send_message(message: Message, match: dict):
 
 async def parser(message: Message):
     while True:
-        await asyncio.sleep(15)
+        await asyncio.sleep(60)
         if json.loads(await message.bot.redis.get(f'bot-{message.from_user.id}')) == 'stop':
             break
 

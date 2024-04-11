@@ -11,6 +11,7 @@ services:
 
   tg_bot:
     container_name: tg_bot
+    restart: always
     build: .
     depends_on:
       - db

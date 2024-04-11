@@ -64,20 +64,36 @@ class BetWatchParser:
 
         this method save match data in self.matches
         """
-        html = self.session.get(f'{BASE_URL}/football/getMain?'
-                                f'date={datetime.now().date()}&'
-                                f'live_only={str(online_matches).lower()}&'
-                                f'prematch_only={str(pre_matches).lower()}&'
-                                'not_countries=&'
-                                'not_leagues=&'
-                                'settings_order=country&'
-                                'country=&'
-                                'league=&'
-                                'utc=5&'
-                                'step=1')
-        data = json.loads(html.text)
-        for match in data['data']:
-            self.matches[match['m']] = match['e']
+        for step in range(1, 4):
+            html = self.session.get(f'{BASE_URL}/football/getMain?'
+                                    f'date={datetime.now().date()}&'
+                                    f'live_only={str(online_matches).lower()}&'
+                                    f'prematch_only={str(pre_matches).lower()}&'
+                                    'not_countries=&'
+                                    'not_leagues=&'
+                                    'settings_order=country&'
+                                    'country=&'
+                                    'league=&'
+                                    'utc=5&'
+                                    f'step={step}')
+            data = json.loads(html.text)
+            for match in data['data']:
+                self.matches[match['m']] = match['e']
+
+            html = self.session.get(f'{BASE_URL}/football/getMain?'
+                                    f'date={datetime.now().date()}&'
+                                    f'live_only={str(online_matches).lower()}&'
+                                    f'prematch_only={str(pre_matches).lower()}&'
+                                    'not_countries=&'
+                                    'not_leagues=&'
+                                    'settings_order=country&'
+                                    'country=International&'
+                                    'league=&'
+                                    'utc=5&'
+                                    f'step={step}')
+            data = json.loads(html.text)
+            for match in data['data']:
+                self.matches[match['m']] = match['e']
 
     async def get_match_info(self, match: str) -> dict | None:
         """
