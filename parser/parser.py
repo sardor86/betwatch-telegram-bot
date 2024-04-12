@@ -20,7 +20,8 @@ class BetWatchParser:
                  from_percentage: int = 0, to_percentage: int = 100,
                  from_coefficient: int = 0, to_coefficient: int = 99999,
                  from_time: int = 0, up_time: int = 150,
-                 block_list: list = []) -> None:
+                 block_list: list = [],
+                 online_matches: bool = True, pre_matches: bool = True) -> None:
         """
         magical method __init__ set filters and mainly attributes
 
@@ -39,6 +40,8 @@ class BetWatchParser:
         """
 
         self.session = requests.Session()
+        self.online_matches = online_matches
+        self.pre_matches = pre_matches
         self.matches: dict = {}
 
         self.from_price = from_price
@@ -55,86 +58,48 @@ class BetWatchParser:
 
         self.block_list = block_list
 
-    async def get_matches(self, online_matches=False, pre_matches=False) -> None:
+    async def get_matches_list(self, step: int = 1, country: str = '') -> None:
         """
-        this method get name of matches and this is
-
-        :param online_matches: use for get only online matches
-        :param pre_matches:  use for get only pre matches
-
-        this method save match data in self.matches
+        this method get data from BetWatch site and save it to self.matches
         """
+        html = self.session.get(f'{BASE_URL}/football/getMain?'
+                                f'date={datetime.now().date()}&'
+                                f'live_only={str(self.online_matches).lower()}&'
+                                f'prematch_only={str(self.pre_matches).lower()}&'
+                                'not_countries=&'
+                                'not_leagues=&'
+                                'settings_order=country&'
+                                f'country={country}&'
+                                'league=&'
+                                'utc=5&'
+                                f'step={step}')
+        data = json.loads(html.text)
+        for match in data['data']:
+            self.matches[match['m']] = match['e']
+
+    async def get_all_matches(self) -> None:
+        """
+        this method clear self.matches and
+        get all matches(ordinary and International matches) data from BetWatch site
+        and save match name and id to self.matches
+        """
+        self.matches = {}
         for step in range(1, 4):
-            html = self.session.get(f'{BASE_URL}/football/getMain?'
-                                    f'date={datetime.now().date()}&'
-                                    f'live_only={str(online_matches).lower()}&'
-                                    f'prematch_only={str(pre_matches).lower()}&'
-                                    'not_countries=&'
-                                    'not_leagues=&'
-                                    'settings_order=country&'
-                                    'country=&'
-                                    'league=&'
-                                    'utc=5&'
-                                    f'step={step}')
-            data = json.loads(html.text)
-            for match in data['data']:
-                self.matches[match['m']] = match['e']
+            await self.get_matches_list(step=step)
+            await self.get_matches_list(step=step, country='International')
 
-            html = self.session.get(f'{BASE_URL}/football/getMain?'
-                                    f'date={datetime.now().date()}&'
-                                    f'live_only={str(online_matches).lower()}&'
-                                    f'prematch_only={str(pre_matches).lower()}&'
-                                    'not_countries=&'
-                                    'not_leagues=&'
-                                    'settings_order=country&'
-                                    'country=International&'
-                                    'league=&'
-                                    'utc=5&'
-                                    f'step={step}')
-            data = json.loads(html.text)
-            for match in data['data']:
-                self.matches[match['m']] = match['e']
-
-    async def get_match_info(self, match: str) -> dict | None:
+    async def get_match_main_info(self, match: str) -> dict:
         """
-        this method get runner info of match and return it
-        this method use filters that has set in __init__ magical method
-
-        if method can`t find this match, it will return None
-
-        :param match: name of match
-        :return: runner info of match
+        this method get main information about match
+        such as name, type, and time if type is live, this method will return score to
         """
-        result: dict = {
+        result = {
             'name': match,
-            'type': '',
-            'runners': []
+            'time': '',
+            'type': ''
         }
-        html = self.session.get(f'{BASE_URL}/{self.matches[match]}')
-
-        if html.status_code == 404:
-            return
-
-        soup = BeautifulSoup(html.text, 'html.parser')
-
-        if len(soup.find_all('button', class_='header-button')) == 2:
-            try:
-                match_data = json.loads(self.session.get(f'{BASE_URL}/live?'
-                                                         f'live={self.matches[match]}').text)[str(self.matches[match])]
-                result['type'] = 'live'
-                result['score'] = match_data[1]
-                if match_data[0] == 'HT':
-                    result['time'] = 45
-                else:
-                    if '+' in match_data[0]:
-                        result['time'] = sum([int(i) for i in match_data[0].split('+')])
-                    else:
-                        result['time'] = int(match_data[0])
-                if not (self.from_time <= result['time'] <= self.up_time):
-                    return
-            except KeyError:
-                pass
-        else:
+        match_info = json.loads(self.session.get(f'https://betwatch.fr/live?live={self.matches[match]}').text)
+        if not match_info:
             result['type'] = 'pre-match'
             match_time = json.loads(self.session.get(f'{BASE_URL}/football/{self.matches[match]}',
                                                      headers={'X-Requested-With': 'XMLHttpRequest'}).text)['ce']
@@ -144,6 +109,44 @@ class BetWatchParser:
 
             match_time_local = date_utc.replace(tzinfo=pytz.utc).astimezone(your_timezone)
             result['time'] = match_time_local.strftime('%Y-%m-%d %H:%M:%S %Z%z')
+            return result
+
+        if match_info[0] == 'HT':
+            result['time'] = 45
+        else:
+            result['time'] = sum([int(match_time_number) for match_time_number in match_info[0].split('+')])
+        result['type'] = 'live'
+        result['score'] = match_info[1]
+
+        return result
+
+    async def get_match_info(self, match: str) -> dict:
+        """
+        this method get runner info of match and return it
+        this method use filters that has set in __init__ magical method
+
+        if method can`t find this match,
+        it will return dict with name not found and another parameters with not found
+
+        :param match: name of match
+        :return: runner info of match
+        """
+        html = self.session.get(f'{BASE_URL}/{self.matches[match]}')
+
+        if html.status_code == 404:
+            return {
+                'name': 'not found',
+                'type': 'not found',
+                'time': 'not found',
+                'runners': []
+            }
+
+        result = await self.get_match_main_info(match)
+        if self.from_time <= result['time'] <= self.up_time:
+            result['runners'] = [],
+            return result
+
+        soup = BeautifulSoup(html.text, 'html.parser')
 
         for info in soup.find_all('div', class_='match-issues'):
             for runner in info.find_all('div', class_='match-runner'):
