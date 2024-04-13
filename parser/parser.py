@@ -141,7 +141,10 @@ class BetWatchParser:
         logger.info('get_match_info has called')
 
         result: dict = {
-            'name': match
+            'name': match,
+            'type': '',
+            'time': None,
+            'runners': []
         }
 
         logger.info('checking match')
