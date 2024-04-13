@@ -24,13 +24,17 @@ class Config:
 
 
 def load_config(path: str = None):
+    """
+    this function get env variables from .env file
+    and return them as a Config
+    """
     env = Env()
     env.read_env(path)
 
     return Config(
         tg_bot=TgBot(
             token=env.str("BOT_TOKEN"),
-            admin_ids=list(map(int, env.str("ADMINS").split(","))),
+            admin_ids=list(map(int, env.str("USERS").split(","))),
         ),
         redis=RedisConfig(
             host=env.str("REDIS_HOST"),

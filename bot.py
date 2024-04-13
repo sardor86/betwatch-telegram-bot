@@ -12,21 +12,27 @@ logger = logging.getLogger(__name__)
 
 
 async def main():
+    """
+    this function set main settings and start the bot
+    """
     logging.basicConfig(
         level=logging.INFO,
         format=u'%(filename)s:%(lineno)d #%(levelname)-8s [%(asctime)s] - %(name)s - %(message)s',
     )
     logger.info("Starting bot")
     config = load_config(".env")
-    redis = Redis(host=config.redis.host, port=config.redis.port)
 
+    # set redis
+    redis = Redis(host=config.redis.host, port=config.redis.port)
     storage = RedisStorage(redis)
+
+    # set bot
     bot = Bot(token=config.tg_bot.token, parse_mode='HTML')
     bot.config = config
     bot.redis = redis
     bot.parser = BetWatchParser()
-
     dp = Dispatcher(storage=storage)
+
     register_all_handlers(dp)
 
     # start

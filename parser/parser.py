@@ -1,11 +1,14 @@
 import json
 from datetime import datetime
+import logging
 
 import pytz
 import requests
 from bs4 import BeautifulSoup
 
 from tgbot.config import BASE_URL
+
+logger = logging.getLogger(__name__)
 
 
 class BetWatchParser:
@@ -21,7 +24,7 @@ class BetWatchParser:
                  from_coefficient: int = 0, to_coefficient: int = 99999,
                  from_time: int = 0, up_time: int = 150,
                  block_list: list = [],
-                 online_matches: bool = True, pre_matches: bool = True) -> None:
+                 online_matches: bool = False, pre_matches: bool = False) -> None:
         """
         magical method __init__ set filters and mainly attributes
 
@@ -58,6 +61,8 @@ class BetWatchParser:
 
         self.block_list = block_list
 
+        logger.info('BetWatchParser __init__ set filters and mainly attributes')
+
     async def get_matches_list(self, step: int = 1, country: str = '') -> None:
         """
         this method get data from BetWatch site and save it to self.matches
@@ -76,6 +81,7 @@ class BetWatchParser:
         data = json.loads(html.text)
         for match in data['data']:
             self.matches[match['m']] = match['e']
+        logger.info('BetWatchParser get_matches_list has got matches info and save it to self.matches')
 
     async def get_all_matches(self) -> None:
         """
@@ -87,37 +93,38 @@ class BetWatchParser:
         for step in range(1, 4):
             await self.get_matches_list(step=step)
             await self.get_matches_list(step=step, country='International')
+        logger.info('has got all matches list and save it to self.matches')
 
-    async def get_match_main_info(self, match: str) -> dict:
+    async def get_match_time(self, match: str, match_type: str) -> dict:
         """
         this method get main information about match
         such as name, type, and time if type is live, this method will return score to
         """
-        result = {
-            'name': match,
-            'time': '',
-            'type': ''
+        logger.info('BetWatchParser get_math_main_info has called')
+        result: dict = {
+            'time': ''
         }
-        match_info = json.loads(self.session.get(f'https://betwatch.fr/live?live={self.matches[match]}').text)
-        if not match_info:
-            result['type'] = 'pre-match'
-            match_time = json.loads(self.session.get(f'{BASE_URL}/football/{self.matches[match]}',
-                                                     headers={'X-Requested-With': 'XMLHttpRequest'}).text)['ce']
 
-            date_utc = datetime.strptime(match_time, "%Y-%m-%dT%H:%M:%SZ")
-            your_timezone = pytz.timezone('Europe/Moscow')
+        logger.info('starting get match time')
 
-            match_time_local = date_utc.replace(tzinfo=pytz.utc).astimezone(your_timezone)
-            result['time'] = match_time_local.strftime('%Y-%m-%d %H:%M:%S %Z%z')
+        if match_type == 'live':
+            match_info = json.loads(self.session.get(f'https://betwatch.fr/live?live={self.matches[match]}').text)
+            if match_info[0] == 'HT':
+                result['time'] = 45
+            else:
+                result['time'] = sum([int(match_time_number) for match_time_number in match_info[0].split('+')])
+            result['type'] = 'live'
+            result['score'] = match_info[1]
             return result
 
-        if match_info[0] == 'HT':
-            result['time'] = 45
-        else:
-            result['time'] = sum([int(match_time_number) for match_time_number in match_info[0].split('+')])
-        result['type'] = 'live'
-        result['score'] = match_info[1]
+        match_time = json.loads(self.session.get(f'{BASE_URL}/football/{self.matches[match]}',
+                                                 headers={'X-Requested-With': 'XMLHttpRequest'}).text)['ce']
 
+        date_utc = datetime.strptime(match_time, "%Y-%m-%dT%H:%M:%SZ")
+        your_timezone = pytz.timezone('Europe/Moscow')
+
+        match_time_local = date_utc.replace(tzinfo=pytz.utc).astimezone(your_timezone)
+        result['time'] = match_time_local.strftime('%Y-%m-%d %H:%M:%S %Z%z')
         return result
 
     async def get_match_info(self, match: str) -> dict:
@@ -131,9 +138,17 @@ class BetWatchParser:
         :param match: name of match
         :return: runner info of match
         """
+        logger.info('get_match_info has called')
+
+        result: dict = {
+            'name': match
+        }
+
+        logger.info('checking match')
         html = self.session.get(f'{BASE_URL}/{self.matches[match]}')
 
         if html.status_code == 404:
+            logger.warning('match not found')
             return {
                 'name': 'not found',
                 'type': 'not found',
@@ -141,13 +156,27 @@ class BetWatchParser:
                 'runners': []
             }
 
-        result = await self.get_match_main_info(match)
-        if self.from_time <= result['time'] <= self.up_time:
-            result['runners'] = [],
-            return result
-
+        logger.info('soup is being created')
         soup = BeautifulSoup(html.text, 'html.parser')
 
+        logger.info('get match type')
+        if soup.find_all('div', class_='header-button'):
+            result['type'] = 'live'
+        else:
+            result['type'] = 'pre-match'
+
+        logger.info('getting math time')
+        match_time = await self.get_match_time(match, result['type'])
+
+        logger.info('checking the time')
+        result['time'] = match_time['time']
+        if result['type'] == 'live':
+            if not (self.from_time <= match_time['time'] <= self.up_time):
+                result['runners'] = [],
+                return result
+            result['score'] = match_time['score']
+
+        logger.info('getting match runners')
         for info in soup.find_all('div', class_='match-issues'):
             for runner in info.find_all('div', class_='match-runner'):
                 name = info.find('div', class_='match-issue').text
