@@ -94,7 +94,7 @@ async def save_filters(callback: CallbackQuery):
     filters = json.loads(await callback.bot.redis.get(f'filter-{callback.from_user.id}'))
 
     logger.info('save filters from redis to parser')
-    callback.bot.parser.online_matches = filters['online_matches']
+    callback.bot.parser.live_matches = filters['online_matches']
     callback.bot.parser.pre_matches = filters['pre_matches']
 
     callback.bot.parser.from_price = filters['from_price']
@@ -106,8 +106,11 @@ async def save_filters(callback: CallbackQuery):
     callback.bot.parser.from_coefficient = filters['from_coefficient']
     callback.bot.parser.to_coefficient = filters['to_coefficient']
 
-    callback.bot.parser.from_time = filters['from_time']
-    callback.bot.parser.to_time = filters['to_time']
+    callback.bot.parser.from_time_1 = filters['from_time_1']
+    callback.bot.parser.to_time_1 = filters['to_time_1']
+
+    callback.bot.parser.from_time_2 = filters['from_time_2']
+    callback.bot.parser.to_time_2 = filters['to_time_2']
 
     callback.bot.parser.block_list = filters['block_list']
 

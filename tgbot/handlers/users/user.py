@@ -32,8 +32,10 @@ async def bot_start(message: Message):
             'to_percentage': 100,
             'from_coefficient': 0,
             'to_coefficient': 99999,
-            'from_time': 0,
-            'to_time': 150,
+            'from_time_1': 0,
+            'to_time_1': 45,
+            'from_time_2': 45,
+            'to_time_2': 90,
             'up_from_percentage': 0,
             'up_to_percentage': 100,
             'block_list': []

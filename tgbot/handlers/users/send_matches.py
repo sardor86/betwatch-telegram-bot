@@ -7,30 +7,28 @@ from aiogram.types import Message
 logger = logging.getLogger(__name__)
 
 
-async def filter_matches(old_matches_list: list, new_matches_list: list) -> dict | None:
-    logger.info('filter old and new matches')
+async def sort_matches(old_matches_list: list, new_matches_list: list) -> dict | None:
+    logger.info('sort old and new matches')
     result: dict = {
         'old_matches': [],
         'new_matches': []
     }
 
     for new_match in new_matches_list:
-        if not new_match['runners']:
+        if not new_matches_list[new_match]['runners']:
             continue
-
-        if new_match['name'] in [old_match['name'] for old_match in old_matches_list]:
-            result['old_matches'].append(new_match)
+        if str(new_match) in old_matches_list:
+            result['old_matches'].append(new_matches_list[new_match])
             continue
-        result['new_matches'].append(new_match)
-
+        result['new_matches'].append(new_matches_list[new_match])
     return result
 
 
-async def get_old_data(data: dict, old_dates: list) -> dict:
+async def get_old_data(data: dict, old_datas: list) -> dict | None:
     logger.info('get old data')
-    for old_date in old_dates:
-        if old_date['name'] == data['name']:
-            return old_date
+    for old_data in old_datas:
+        if old_data['name'] == data['name']:
+            return old_data
 
 
 async def send_message(message: Message, match: dict):
@@ -39,7 +37,7 @@ async def send_message(message: Message, match: dict):
         return
 
     try:
-        message_result = (f'{match["name"]}\n'
+        message_result = (f'{match["match"]}\n'
                           f'type: {match["type"]}\n')
 
         if match['type'] == 'live':
@@ -49,10 +47,13 @@ async def send_message(message: Message, match: dict):
             message_result += f'🕐{match["time"]}\n'
 
         for match_runner in match['runners']:
-            message_result += (f'{match_runner["name"]}: \n'
+            message_result += (f'⭕{match_runner["name"]}: \n'
                                f'💰{match_runner["price"]} '
                                f'📈{match_runner["coefficient"]} '
                                f'💯{match_runner["percentage"]}\n')
+            if 'change_percent' in match_runner:
+                message_result = message_result[:-1]
+                message_result += f'🔥{match_runner["change_percent"]}\n'
     except KeyError:
         return
 
@@ -61,7 +62,7 @@ async def send_message(message: Message, match: dict):
 
 async def parser(message: Message):
     while True:
-        await asyncio.sleep(60)
+        await asyncio.sleep(10)
 
         logger.info('check is parser working')
         if json.loads(await message.bot.redis.get(f'bot-{message.from_user.id}')) == 'stop':
@@ -72,37 +73,31 @@ async def parser(message: Message):
 
         logger.info('get old and new matches info')
         old_matches_list = json.loads(await message.bot.redis.get(f'parser-{message.from_user.id}'))
-        new_matches_list = [(await message.bot.parser.get_match_info(match)) for match in message.bot.parser.matches]
+        new_matches_list = message.bot.parser.matches
 
         logger.info('filter matches')
-        matches_list = await filter_matches(old_matches_list, new_matches_list)
+        matches_list = await sort_matches(old_matches_list, new_matches_list)
 
         logger.info('send new matches')
         for new_matches in matches_list['new_matches']:
             await send_message(message, new_matches)
 
         logger.info('check and send old matches')
+        filters = json.loads(await message.bot.redis.get(f'filter-{message.from_user.id}'))
         for match in matches_list['old_matches']:
-            old_match = await get_old_data(match, old_matches_list)
+            old_match = old_matches_list[str(match['id'])]
+            result_runners = []
             for runner in match['runners']:
                 old_runner = await get_old_data(runner, old_match['runners'])
-                message_match = match.copy()
-                message_match['runners'] = list([runner])
-                if not old_runner:
-                    try:
-                        if runner['price'] == old_runner['price']:
-                            continue
-                        if runner['percentage'] == old_runner['percentage']:
-                            continue
-                        if runner['coefficient'] == old_runner['coefficient']:
-                            continue
-                    except TypeError:
-                        continue
-
-                    await send_message(message, message_match)
-
+                if old_runner:
+                    change_percent = runner['percentage'] - old_runner['percentage']
+                    if filters['up_from_percentage'] <= change_percent <= filters['up_to_percentage']:
+                        runner['change_percent'] = change_percent
+                        result_runners.append(runner)
                 else:
-                    await send_message(message, message_match)
-
+                    result_runners.append(runner)
+            result_match = match
+            result_match['runners'] = result_runners
+            await send_message(message, result_match)
         logger.info('save new matches list to redis')
         await message.bot.redis.set(f'parser-{message.from_user.id}', json.dumps(new_matches_list))
