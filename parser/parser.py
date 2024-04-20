@@ -162,6 +162,8 @@ class BetWatchParser:
             if match['l']:
                 result['type'] = 'live'
                 live_data = json.loads(self.session.get(f'https://betwatch.fr/live?live={result["id"]}').text)
+                if not (str(result['id']) in live_data):
+                    continue
                 live_data = live_data[str(result['id'])]
                 result['time'] = live_data[0]
                 result['score'] = live_data[1]

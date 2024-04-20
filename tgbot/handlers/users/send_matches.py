@@ -62,7 +62,7 @@ async def send_message(message: Message, match: dict):
 
 async def parser(message: Message):
     while True:
-        await asyncio.sleep(10)
+        await asyncio.sleep(60)
 
         logger.info('check is parser working')
         if json.loads(await message.bot.redis.get(f'bot-{message.from_user.id}')) == 'stop':
