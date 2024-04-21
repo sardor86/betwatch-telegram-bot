@@ -1,5 +1,5 @@
 import json
-from datetime import datetime, timezone, timedelta
+from datetime import datetime
 
 import requests
 
@@ -190,5 +190,6 @@ class BetWatchParser:
             self.matches[match['e']] = result
 
     async def get_all_matches(self):
+        self.matches.clear()
         await self.get_matches(step=5)
         await self.get_matches('International', step=5)
