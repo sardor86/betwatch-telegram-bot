@@ -21,30 +21,29 @@ async def bot_start(message: Message):
     logger.info('bot is working')
     await message.reply("Бот запущен", reply_markup=(await run_bot_keyboard()))
 
-    logger.info('checking and creating filters')
-    if not (await message.bot.redis.get(f'filter-{message.from_user.id}')):
-        filters = {
-            'online_matches': False,
-            'pre_matches': False,
-            'from_price': 0,
-            'to_price': 99999,
-            'from_percentage': 0,
-            'to_percentage': 100,
-            'from_coefficient': 0,
-            'to_coefficient': 99999,
-            'from_time_1': 0,
-            'to_time_1': 45,
-            'from_time_2': 45,
-            'to_time_2': 90,
-            'up_from_percentage': 0,
-            'up_to_percentage': 100,
-            'block_list': []
-        }
+    logger.info('creating filters')
+    filters = {
+        'online_matches': False,
+        'pre_matches': False,
+        'from_price': 0,
+        'to_price': 99999,
+        'from_percentage': 0,
+        'to_percentage': 100,
+        'from_coefficient': 0,
+        'to_coefficient': 99999,
+        'from_time_1': 0,
+        'to_time_1': 45,
+        'from_time_2': 45,
+        'to_time_2': 90,
+        'up_from_percentage': 0,
+        'up_to_percentage': 100,
+        'block_list': []
+    }
 
-        await message.bot.redis.set(
-            f'filter-{message.from_user.id}',
-            json.dumps(filters)
-        )
+    await message.bot.redis.set(
+        f'filter-{message.from_user.id}',
+        json.dumps(filters)
+    )
 
     await message.bot.redis.set(
         f'bot-{message.from_user.id}', json.dumps('working')

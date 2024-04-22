@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 
 import requests
 
@@ -183,7 +183,10 @@ class BetWatchParser:
                 result['type'] = 'pre-match'
                 if not (match['ce'].split('T')[0] == date):
                     continue
-                result['time'] = match['ce'].split('T')[0][:-1]
+                utc_time = datetime.strptime(match['ce'], '%Y-%m-%dT%H:%M:%SZ')
+                moscow_tz = timezone(timedelta(hours=3))
+                moscow_time = utc_time.astimezone(moscow_tz)
+                result['time'] = moscow_time.strftime('%H:%M')
             result['runners'] = await self.get_match_runners(result['id'])
             if not result['runners']:
                 continue
