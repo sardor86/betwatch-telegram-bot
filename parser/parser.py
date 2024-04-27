@@ -188,7 +188,7 @@ class BetWatchParser:
                 result['type'] = 'pre-match'
                 if not (match['ce'].split('T')[0] == date):
                     continue
-                utc_time = datetime.strptime(match['ce'], '%Y-%m-%dT%H:%M:%SZ')
+                utc_time = datetime.fromisoformat(match['ce'].replace('Z', '+00:00'))
                 moscow_tz = timezone(timedelta(hours=3))
                 moscow_time = utc_time.astimezone(moscow_tz)
                 result['time'] = moscow_time.strftime('%H:%M')
