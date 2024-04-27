@@ -98,12 +98,15 @@ class BetWatchParser:
         this method check the runners use some filters such as price, coefficient and percentage
 
         if runners is unsuitable, this method will send empty list
+        if this method cannot find this match, it will return empty list
         :param mach_id: match id
         :return: runners list
         """
         result = []
-        data = json.loads(self.session.get(f'{BASE_URL}/{mach_id}',
-                                           headers={'X-Requested-With': 'XMLHttpRequest'}).text)['i']
+        html_data = self.session.get(f'{BASE_URL}/{mach_id}', headers={'X-Requested-With': 'XMLHttpRequest'})
+        if html_data.status_code != 200:
+            return result
+        data = json.loads(html_data.text)['i']
         for runner_id in data:
             for runner_data in data[runner_id]:
                 if runner_data[0] in self.block_list:
@@ -150,6 +153,8 @@ class BetWatchParser:
                                         f'max_percent={self.to_percentage}&'
                                         'min_odd=0&'
                                         'max_odd=349', headers={'X-Requested-With': 'XMLHttpRequest'})
+        if matches_data.status_code != 200:
+            return
         matches_list = json.loads(matches_data.text)['data']
         for match in matches_list:
             result = {
