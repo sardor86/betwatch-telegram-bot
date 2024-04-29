@@ -61,7 +61,7 @@ async def send_message(message: Message, match: dict):
     try:
         await message.bot.send_message(message.chat.id, message_result)
     except TelegramNetworkError:
-        await message.bot.send_message(message.chat.id, message_result)
+        return
 
 
 async def parser(message: Message):
