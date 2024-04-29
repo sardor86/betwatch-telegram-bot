@@ -3,6 +3,7 @@ import asyncio
 import logging
 
 from aiogram.types import Message
+from aiogram.exceptions import TelegramNetworkError
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +58,10 @@ async def send_message(message: Message, match: dict):
     except KeyError:
         return
 
-    await message.bot.send_message(message.chat.id, message_result)
+    try:
+        await message.bot.send_message(message.chat.id, message_result)
+    except TelegramNetworkError:
+        await message.bot.send_message(message.chat.id, message_result)
 
 
 async def parser(message: Message):
