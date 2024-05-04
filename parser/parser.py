@@ -1,5 +1,6 @@
 import json
 from datetime import datetime, timezone, timedelta
+from json import JSONDecodeError
 
 import requests
 
@@ -166,7 +167,10 @@ class BetWatchParser:
                 continue
             if match['l']:
                 result['type'] = 'live'
-                live_data = json.loads(self.session.get(f'https://betwatch.fr/live?live={result["id"]}').text)
+                try:
+                    live_data = json.loads(self.session.get(f'https://betwatch.fr/live?live={result["id"]}').text)
+                except JSONDecodeError:
+                    continue
                 if not (str(result['id']) in live_data):
                     continue
                 live_data = live_data[str(result['id'])]
