@@ -104,21 +104,22 @@ class BetWatchParser:
         :return: runners list
         """
         result = []
-        html_data = self.session.get(f'{BASE_URL}/{mach_id}', headers={'X-Requested-With': 'XMLHttpRequest'})
+        html_data = self.session.get(f'{BASE_URL}/{mach_id}', headers={'X-Betwatch-Header': 'XMLHttpRequest'})
         if html_data.status_code != 200:
             return result
         data = json.loads(html_data.text)['i']
         for runner_id in data:
-            for runner_data in data[runner_id]:
-                if runner_data[0] in self.block_list:
-                    continue
-                if not runner_data[4]:
-                    continue
+            runner_data = data[runner_id]
+            if runner_data['name'] in self.block_list:
+                continue
+            if not runner_data['total_volume']:
+                continue
+            for runner in runner_data['runners']:
                 runner_result = {
-                    'name': f'{runner_data[0]} || {runner_data[1]}',
-                    'price': runner_data[2],
-                    'coefficient': float(runner_data[3]),
-                    'percentage': int(100 * (runner_data[2] / runner_data[4]))
+                    'name': f'{runner_data["name"]} || {runner["name"]}',
+                    'price': runner['volume'],
+                    'coefficient': float(runner['odd']),
+                    'percentage': int(100 * (runner['volume'] / runner_data['total_volume']))
                 }
 
                 if not (self.from_price <= runner_result['price'] <= self.to_price):
